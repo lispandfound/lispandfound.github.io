@@ -1,0 +1,11 @@
+{
+  "fetched": "2026-08-30",
+  "downloads": {
+    "source-modelling": 1637,
+    "qcore-utils": 802,
+    "velocity-modelling": 599,
+    "im-calculation": 434,
+    "nshmdb": 487,
+    "oq-wrapper": 313
+  }
+}
