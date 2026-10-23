@@ -154,19 +154,13 @@
   columns: (1fr, 1fr, 1fr),
   column-gutter: 1em,
   card([1 · Rupture selection], [
-    7,162 rate-bearing ruptures in NSHM 2022.
-
-    Far too many to simulate every one.
+    How do we select which ruptures to simulate?
   ]),
   card([2 · Multi-segment ruptures], [
-    Up to 100+ planes over many faults, with gaps to jump.
-
-    The generator built one plane at a time.
+    Once we have the ruptures, *how* do we simulate them?
   ]),
   card([3 · Ground-motion science], [
-    A flat free surface: topography approximated away.
-
-    Transition frequency held at 1 Hz.
+    How do we get the most out of what we do simulate?
   ]),
 )
 
@@ -188,8 +182,7 @@
 // But for simulation, every rupture is a full 3D wave-propagation run, and there
 // are far too many to simulate them all. The same trend that makes simulation
 // necessary makes simulating everything impossible.
-== Rupture selection: the problem
-
+== Trends in seismic source modelling
 #v(0.2em)
 #big(source-complexity, cap: 150%)
 #v(1fr)
@@ -212,11 +205,11 @@
   column-gutter: 0.8em,
   align: horizon,
   side(exact, [Empirical models under pressure], [
-    complex ruptures sit past their data, \ driving the push to simulated hazard
+    complex ruptures sit outside calibration range, \ driving the push to simulated hazard
   ]),
   text(0.9em, style: "italic", fill: quiet.darken(25%))[but],
   side(defect, [Simulation can't run them all], [
-    every rupture is a 3D run, \ and there are far too many
+    every simulation is too expensive to run 1000's
   ]),
 )
 #v(0.5em)
@@ -234,7 +227,7 @@
 
 #v(0.2em)
 #align(center, image("out/png/world-map.png", height: 86%))
-#note[national hazard models built on non-characteristic, multi-fault ruptures]
+#note[countries are beginning to adopt non-characteristic models]
 
 // SAY: So the question for this section. We want to simulate the ruptures that
 // matter for hazard -- but which ruptures matter is exactly what the hazard
@@ -302,7 +295,29 @@
 
 #v(0.4em)
 #big(multi-segment-propagation, cap: 200%)
-#note[path drawn from the Shaw--Dieterich jump probabilities; jump points computed, not supplied]
+#note[bootstrapped multi-segment rupture model from existing rupture generators]
+
+= Since June
+
+== Four changes since June
+
+#v(0.8em)
+#grid(
+  columns: (1fr, 1fr, 1fr, 1fr),
+  column-gutter: 0.8em,
+  change(icon-layers, [Velocity model], [
+    Replaced: models assembled from data, not baked into code.
+  ]),
+  change(icon-topo, [Topography], [
+    Explicit, on a curvilinear free surface.
+  ]),
+  change(icon-refine, [Solver], [
+    EMOD3D swapped wholesale for SW4, with mesh refinement.
+  ]),
+  change(fit(multi-segment-propagation, cap: 60%), [Rupture generator], [
+    New, publicly available, multi-segment.
+  ]),
+)
 
 = Ground-motion science
 
@@ -334,12 +349,11 @@
 // under what a 2 Hz wave needs at every depth, where the old code paid for the
 // surface spacing all the way to 50 kilometres. Even refined, two thirds of the
 // grid points are in the top kilometre and a half.
-== Towards 2 Hz: refine where the slow rock is
+== Towards 2 Hz: variable mesh refinements
 
 #v(1.0em)
 #big(refinement, cap: 165%)
 
-= Since June
 
 // SAY: How far we have come since June. Four changes, each of which is a
 // project in its own right.
@@ -351,25 +365,6 @@
 // refinement possible. And the rupture generator is new and public, with the
 // multi-segment algorithm from two sections ago.
 // TODO(jake): link for the public rupture generator.
-== Four changes since June
-
-#v(0.8em)
-#grid(
-  columns: (1fr, 1fr, 1fr, 1fr),
-  column-gutter: 0.8em,
-  change(icon-layers, [Velocity model], [
-    Replaced: models assembled from data, not baked into code.
-  ]),
-  change(icon-topo, [Topography], [
-    Explicit, on a curvilinear free surface.
-  ]),
-  change(icon-refine, [Solver], [
-    EMOD3D swapped wholesale for SW4, with mesh refinement.
-  ]),
-  change(fit(multi-segment-propagation, cap: 60%), [Rupture generator], [
-    New, publicly available, multi-segment.
-  ]),
-)
 
 = Showcase: Marlborough 1848
 
