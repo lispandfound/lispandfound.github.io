@@ -27,7 +27,7 @@
 #import "figures/multi-segment-propagation.typ": multi-segment-propagation
 #import "figures/source-complexity.typ": source-complexity
 #import "figures/refinement.typ": refinement
-#import "figures/curvilinear-cartesian-grid.typ": curvilinear-cartesian-grid
+#import "figures/topography-squashing.typ": topography-squashing
 #import "figures/icons.typ": icon-layers, icon-refine, icon-topo
 #import "palette.typ": defect, exact, perf, quiet, stat
 
@@ -307,22 +307,24 @@
 = Ground-motion science
 
 // SAY: Topography. With a flat free surface the topography has to go somewhere.
-// Top left is the truth. Bulldozed cuts the model off at sea level and the hills
-// are gone. Squashed measures depth from the local surface, so the hills survive
-// but flat structure underneath gets the topography printed into it. Previous
-// Cybershake runs used a tapered version of squashing.
-// On the right is what we do now: the top of the model is a curvilinear mesh
-// that follows the real surface, over an ordinary Cartesian grid. Ridge and
-// valley amplification is in the 3D motion, not added afterwards.
+// On the left is the truth: the top of the model is a curvilinear mesh that
+// follows the real surface, over an ordinary Cartesian grid, and the slow
+// near-surface layers sit at their real depth under hills and valleys alike.
+// On the right is what previous Cybershake runs did, squashed-tapered: the
+// surface is flattened to sea level and the column from the hilltop down to a
+// taper depth is squeezed into the space below it. Same layers, but under every
+// hill they come out thinner -- the slow material is squashed, so the site
+// looks stiffer than it is, exactly where topography would amplify. Basins get
+// it twice over. An elevated basin like Hanmer sits high, so its sediments are
+// compressed in proportion to how high it sits: the basin we simulate is
+// shallower than the real one, and basin amplification is underpredicted.
+// With the conforming mesh, ridge, valley and basin response are all in the 3D
+// motion, not added afterwards.
 == Topography: from approximated to explicit
 
-#grid(
-  columns: (1.15fr, 1fr),
-  column-gutter: 1em,
-  align: horizon,
-  image("figures/topography_representations.png", width: 100%),
-  fit(curvilinear-cartesian-grid, cap: 200%),
-)
+#v(1.2em)
+#big(topography-squashing, cap: 200%)
+#note[same layers and basin; the flat grid squashes them thinner the higher they sat]
 
 // SAY: And the transition frequency. To carry a frequency the grid has to
 // resolve the slowest material, and cost goes as grid spacing to the minus four:
