@@ -1,0 +1,21 @@
+# "X is not Y" as a way of defining X.
+#
+# Neither shipped ruleset catches this: Deslop.AntitheticalPair wants a tighter
+# "not X but Y" and Deslop.NotJustScaffold wants the literal "not just". The
+# loose form -- assert what a thing is not, then land a short sentence saying
+# what it is -- is the same rhetorical move and is a strong LLM tell at density.
+#
+# Calibrated against ~/Documents/phd-proposal, which is the author's own prose
+# and uses this construction ZERO times in 8,742 words. So any hit here is worth
+# looking at, not just a pile-up of them. An earlier version of this comment
+# said "0 to 1.0 per thousand words", calibrated against the earlier decks; the
+# proposal is the better sample and it is stricter.
+extends: existence
+message: "Negation-definition ('%s'). Fine once in a talk -- check you are not opening every point this way."
+level: suggestion
+ignorecase: true
+tokens:
+  - '\bis not (?:a|an|the|just)\b'
+  - '\bare not (?:a|an|the|just)\b'
+  - '\bis not the same as\b'
+  - '\bThat is not the\b'
