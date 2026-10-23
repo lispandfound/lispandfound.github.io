@@ -1,0 +1,39 @@
+# Build the talk.
+#
+#   just            # main.pdf
+#   just watch      # live-rebuild the PDF while editing
+#   just slides     # one PNG per slide, for reviewing without a PDF viewer
+#   just notes      # main-notes.pdf: each slide with its speaker notes beside it
+#   just pdfpc      # main.pdfpc: notes for presenting main.pdf with pdfpc
+
+png := "out/png"
+
+default: deck
+
+deck:
+    typst compile main.typ
+
+# The old PNGs are removed first. Typst writes one file per page, so a deck that
+# loses a slide leaves the last render of the old final slide sitting on disk
+# under a number nothing writes any more -- which reads exactly like a slide
+# that failed to update.
+slides: deck
+    mkdir -p {{png}}
+    rm -f {{png}}/slide-*.png
+    typst compile main.typ '{{png}}/slide-{0p}.png' --format png --ppi 110
+
+notes:
+    typst compile --input notes=true main.typ main-notes.pdf
+
+pdfpc: deck
+    typst eval 'query(<pdfpc-file>).first().value' --in main.typ > main.pdfpc
+
+watch:
+    typst watch main.typ
+
+# Lint the abstract with the NZCVM Vale config.
+lint:
+    -vale --config ~/src/nzcvm/.vale.ini abstract.md
+
+clean:
+    rm -rf out main.pdf main-notes.pdf main.pdfpc

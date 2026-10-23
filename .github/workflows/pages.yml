@@ -1,0 +1,62 @@
+# Build every talk (HTML deck + PDF) and publish to GitHub Pages on each push
+# to main. Figures are committed, so this only runs Typst; see tools/build_site.py.
+name: Deploy slides
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer push supersedes a queued one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  # Match the local Typst so CI renders what you previewed.
+  TYPST_VERSION: "0.15.1"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Typst
+        run: |
+          curl -fsSL "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" \
+            | tar -xJ --strip-components=1 -C /usr/local/bin typst-x86_64-unknown-linux-musl/typst
+          typst --version
+
+      # @preview packages (touying, cetz, ...) are fetched on first compile.
+      - name: Cache Typst packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/typst/packages
+          key: typst-packages-${{ hashFiles('**/*.typ') }}
+          restore-keys: typst-packages-
+
+      - name: Build site
+        # Bundled fonts only, so a deck cannot depend on a font this runner lacks.
+        env:
+          TYPST_IGNORE_SYSTEM_FONTS: "true"
+        run: python3 tools/build_site.py
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

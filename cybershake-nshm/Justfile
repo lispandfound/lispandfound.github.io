@@ -1,32 +1,31 @@
-# Build the talk: figures -> PNGs -> Typst deck + starter PowerPoint.
+# Build the talk: figures -> PNGs -> Typst deck -> HTML and PowerPoint.
 #
 #   just            # everything, in order
-#   just deck       # just the PDF
+#   just deck       # just the PDF (figures must already exist)
 #   just watch      # live-rebuild the PDF while editing
 #
-# The PowerPoint is the deliverable and the Typst deck is the design source, so
-# `just` builds both and they are always generated from the same figures.
+# The Typst deck is the design source. The HTML deck is the one to present
+# from, because it can play the Marlborough video; the PowerPoint is the
+# fallback for a machine with no usable browser. Both render every Typst page,
+# so neither can drift from the PDF.
 
 png := "out/png"
 repo := "/home/jake/src/monte_carlo_hazard_estimation_code"
+eqvis := "/home/jake/src/eqvis_workflow"
+ppi := "300"
 
-# Export resolution for the figure PNGs that go into PowerPoint. These are
-# placed at a fixed physical size on the slide, so extra pixels do not change
-# the layout -- they buy headroom for zooming, for a projector at native
-# resolution, and for print. 600 is comfortable; raise it here and nowhere else.
-ppi := "600"
+default: figures deck html pptx
 
-# Every figure that export.typ knows how to render.
-typst_figures := "bias-variance-curves two-strategies psha-pipeline cybershake-timeline scale-ladder magnitude-blind-1 magnitude-blind-2 objectives-fan nshm-logic-tree sampling-logic-tree solve-and-project multi-segment-propagation"
-
-default: figures deck pptx
-
-# Matplotlib figures (PEP-723 scripts, run with uv).
-mpl:
-    uv run scripts/plot_fields_row.py --out {{png}}/fields-row.png --dpi {{ppi}}
-    uv run scripts/plot_hazard_coverage.py --out {{png}}/hazard-coverage.png --dpi {{ppi}}
+# Matplotlib figures (PEP-723 scripts, run with uv). The Marlborough figures
+# read the run in /var/tmp/marlborough_1848 (rclone from
+# dropbox:/QuakeCoRE/Jake/Marlborough/marlborough_1848).
+figures:
+    mkdir -p {{png}}
     uv run scripts/plot_key_idea.py --out {{png}}/key-idea.png --dpi {{ppi}}
     uv run scripts/plot_generator_preview.py --out {{png}}/generator-preview.png --dpi {{ppi}}
+    uv run scripts/plot_world_map.py --out {{png}}/world-map.png --dpi {{ppi}}
+    uv run scripts/plot_marlborough_topo.py --out-dir {{png}} --dpi {{ppi}}
+    uv run --project {{eqvis}} python -I scripts/plot_marlborough_residual.py --out-dir {{png}} --dpi {{ppi}}
     # Efficiency curves come from the analysis repo, so the deck cannot drift
     # from the numbers. Slide variant: no maps, poster type scaled for a slide.
     uv run {{repo}}/report/make_efficiency_figure.py {{repo}}/data/density.h5 \
@@ -34,30 +33,29 @@ mpl:
         {{repo}}/data/all_real_sites.parquet {{repo}}/data/coastline.wkb {{png}} \
         --width-cm 22 --curves-only --font-scale 0.5
 
-# Vector figures, exported standalone at print resolution for PowerPoint.
-vector:
-    mkdir -p {{png}}
-    for f in {{typst_figures}}; do \
-        typst compile --input fig=$f export.typ "{{png}}/$f.png" --format png --ppi {{ppi}}; \
-    done
-
-figures: mpl vector
-
-# The Typst deck. Depends on fields-row.png, which main.typ embeds directly.
-deck: mpl
+# The Typst deck.
+deck:
     typst compile main.typ
 
 # One PNG per slide, for reviewing the deck without opening a PDF viewer.
 slides: deck
     typst compile main.typ '{{png}}/slide-{p}.png' --format png --ppi 110
 
-# The starter deck: editable titles, figures placed, speaker notes carried
-# across from the `// SAY:` blocks in main.typ.
-pptx: figures
+# The PowerPoint fallback: every page rendered from main.typ, speaker notes from
+# the `// SAY:` blocks, and the Marlborough video embedded over its poster.
+pptx: deck
     uv run make_pptx.py
+
+# The HTML deck: every page as SVG, speaker view on `s`, the Marlborough video
+# playing in place. Open out/html/index.html in a browser; the folder is
+# self-contained, so it can be copied to a USB stick as is.
+html: deck
+    uv run ../tools/make_html.py --title "Cybershake NZ: towards simulations in the NSHM"
 
 watch:
     typst watch main.typ
 
+# Not `rm -rf out`: out/ also holds the video cut and its poster frame, which
+# no recipe here regenerates.
 clean:
-    rm -rf out main.pdf
+    rm -rf out/pptx out/html main.pdf {{png}}/slide-*.png

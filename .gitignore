@@ -1,0 +1,17 @@
+# Build outputs. The site is built by CI; the PDFs and decks by `just` in each talk.
+site/
+main.pdf
+main-notes.pdf
+main.pdfpc
+*.pptx
+**/out/html/
+**/out/pptx/
+**/out/png/slide-*.png
+__pycache__/
+.venv/
+
+# Simulation data the figures were made from. Too large for git; the figures
+# built from it are committed instead.
+*.h5
+realisation_real.*
+*.npz

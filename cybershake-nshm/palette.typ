@@ -24,3 +24,22 @@
 // Text helper. Figures are drawn at document scale and scaled at use, so a
 // point size here is relative to the figure, not to the slide.
 #let lbl(body, size: 7pt, fill: black, ..args) = text(size, fill: fill, ..args)[#body]
+
+// Ported from ~/src/gmcm_modelling_talk/palette.typ with the figures that use
+// them (study-timeline, refinement, icons).
+//
+// Sediment fill for the cross-sections, so every basin in the deck is the same
+// colour.
+#let sediment = rgb("#e9d8a6")
+
+// Relaxation-mechanism colours for the attenuation icon.
+#let mechanisms = (
+  rgb("#4e79a7"),
+  rgb("#f28e2b"),
+  rgb("#59a14f"),
+  rgb("#e15759"),
+  rgb("#76b7b2"),
+  rgb("#edc948"),
+  rgb("#b07aa1"),
+  rgb("#9c755f"),
+)
