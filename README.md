@@ -2,7 +2,9 @@
 
 Talks written in [Typst](https://typst.app) with the touying slide package.
 Every push to `main` builds each one as an HTML deck and a PDF and publishes
-them to GitHub Pages: <https://lispandfound.github.io/presentations/>.
+them to GitHub Pages at <https://lispandfound.github.io/>, under a profile page
+that also lists publications, posters and software. Each talk lives at
+`/<folder>/`.
 
 | Folder | Talk |
 |---|---|
