@@ -28,10 +28,14 @@ python3 tools/build_site.py        # -> site/
 python3 -m http.server -d site     # browse it at localhost:8000
 ```
 
-`tools/build_site.py` lists the talks shown on the index page; add a folder
-there to publish a new talk. `tools/make_html.py` turns one deck into an HTML
-slideshow (`s` opens the speaker view; any `<video>` metadata in the deck
-becomes a playing video) and works on its own:
+The index page is a profile: about, publications, posters, conference
+submissions, software and talks.
+`tools/build_site.py` holds the lists; add a folder to `TALKS` to publish a new
+talk, and add papers, posters, conference submissions and software releases to
+`PUBLICATIONS`, `POSTERS`, `CONFERENCE` and `SOFTWARE` by hand.
+`tools/make_html.py` turns one deck into an HTML slideshow (`s` opens the
+speaker view; any `<video>` metadata in the deck becomes a playing video) and
+works on its own:
 
 ```sh
 cd cybershake-nshm && uv run ../tools/make_html.py --title "..."   # -> out/html/
