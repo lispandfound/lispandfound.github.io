@@ -369,7 +369,9 @@
   ]),
 )
 
-= All four at once: Marlborough 1848
+= Showcase: Marlborough 1848
+
+#text(0.55em, fill: quiet.darken(20%))[Source geometry: Aisling O'Kane (VUW)]
 
 // SAY: [video] One event with every change in it: the 1848 Marlborough
 // earthquake, Mw 7.2 here, run in SW4 with explicit topography through the new
