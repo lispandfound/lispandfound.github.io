@@ -25,6 +25,7 @@
 #import "figures/study-timeline.typ": study-timeline
 #import "figures/nshm-weights.typ": nshm-weights
 #import "figures/multi-segment-propagation.typ": multi-segment-propagation
+#import "figures/rupture-steps.typ": jump-graph, jump-timing, rupture-plan
 #import "figures/source-complexity.typ": source-complexity
 #import "figures/refinement.typ": refinement
 #import "figures/topography-squashing.typ": topography-squashing
@@ -60,6 +61,14 @@
   let f = calc.min(size.width / m.width * 100%, cap)
   align(center, scale(f, reflow: true, body))
 })
+
+// Scale a figure to fill a box of fixed height, whichever of its width or
+// height runs out first.
+#let fill-box(body, height) = box(height: height, width: 100%, layout(size => {
+  let m = measure(body)
+  let f = calc.min(size.width / m.width, size.height / m.height) * 100%
+  align(center + horizon, scale(f, reflow: true, body))
+}))
 
 #let big(body, cap: 188%) = fit(body, cap: cap)
 
@@ -282,20 +291,52 @@
 #v(-0.1em)
 #align(center, image("out/png/generator-preview.png", width: 99%))
 
-// SAY: For multi-segment ruptures the new generator does two things. The path
-// through the segments is sampled, from Shaw--Dieterich jump probabilities,
-// exactly from the distribution over trees rooted at the hypocentre -- not
-// greedily and not by hand. And the jump point is computed: the rupture leaves a
-// fault from where its front arrests, and the onset time carries across the
-// jump, so rupture time is continuous over the whole source. The previous
-// realisation files record a jump point fitted by closest approach; we discard
-// it and recompute it.
+// SAY: How the new generator builds a multi-segment rupture, in three steps,
+// on a small made-up system: five segments, stepovers of two to six kilometres.
+// Every number here is the generator's own output.
+// One, the path. Each gap gets a Shaw--Dieterich jump probability, certain
+// under a kilometre and decaying over three. The rupture is a tree rooted at
+// the hypocentre; we can sample trees exactly from that distribution, or take
+// the likeliest, which is the maximum spanning tree -- heavy here. The B--D
+// link closes a cycle, so the tree drops it.
+// Two, the fields. Each segment draws its own slip and onset, scaled to its
+// own magnitude: this is A, with the front spreading from the star.
+// Three, the jump. The child starts where the front first reaches it: the
+// parent's onset at the departure cell plus the shear-wave crossing time,
+// earliest over every pair within reach. The front leaves A at 7.1 seconds,
+// crosses in 0.65, and B starts at 7.8. Rupture time is continuous over the
+// whole source. The previous realisation files record a jump point fitted by
+// closest approach; we discard it and recompute it.
 // You will see this happen in a few minutes.
 == Sampled path, computed jump
 
-#v(0.4em)
-#big(multi-segment-propagation, cap: 200%)
-#note[bootstrapped multi-segment rupture model from existing rupture generators]
+#let steps = json("out/png/rupture-steps.json")
+#let step(n, title, figure, caption) = stack(
+  spacing: 0.35em,
+  text(0.7em, weight: "bold", fill: stat)[#n #h(0.2em) #text(fill: exact)[#title]],
+  fill-box(figure, 3.9cm),
+  align(center, text(0.5em, fill: quiet.darken(30%))[#caption]),
+)
+
+#v(-0.3em)
+#fill-box(rupture-plan(steps), 5.2cm)
+#v(0.2em)
+#grid(
+  columns: (1fr, 1fr, 1fr),
+  column-gutter: 1em,
+  step(1, [Path], jump-graph(steps), [
+    Jump probability $P(d) = e^(-(d - delta) \/ d_0)$ on every gap; \
+    the likeliest tree is the maximum spanning tree
+  ]),
+  step(2, [Fields], image("out/png/rupture-steps-slip.png", height: 3.9cm), [
+    Slip and onset drawn on each segment, \
+    scaled to its own magnitude
+  ]),
+  step(3, [Jump], jump-timing(steps), [
+    Child starts at the earliest parent onset \
+    plus crossing time, within reach
+  ]),
+)
 
 = Since June
 

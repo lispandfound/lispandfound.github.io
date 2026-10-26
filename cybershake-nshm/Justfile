@@ -12,6 +12,7 @@
 png := "out/png"
 repo := "/home/jake/src/monte_carlo_hazard_estimation_code"
 eqvis := "/home/jake/src/eqvis_workflow"
+rupgen := "/home/jake/src/rupture_generator"
 ppi := "300"
 
 default: figures deck html pptx
@@ -26,6 +27,8 @@ figures:
     uv run scripts/plot_world_map.py --out {{png}}/world-map.png --dpi {{ppi}}
     uv run scripts/plot_marlborough_topo.py --out-dir {{png}} --dpi {{ppi}}
     uv run --project {{eqvis}} python -I scripts/plot_marlborough_residual.py --out-dir {{png}} --dpi {{ppi}}
+    # The rupture-generation slide runs the generator itself on a made-up system.
+    uv run --project {{rupgen}} --with matplotlib python -I scripts/plot_rupture_steps.py --out-dir {{png}} --dpi {{ppi}}
     # Efficiency curves come from the analysis repo, so the deck cannot drift
     # from the numbers. Slide variant: no maps, poster type scaled for a slide.
     uv run {{repo}}/report/make_efficiency_figure.py {{repo}}/data/density.h5 \
