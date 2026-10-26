@@ -448,21 +448,28 @@
 
 // SAY: Topography, at two places where it matters. On the left, the Otira
 // Viaduct: the main road over the Southern Alps between Canterbury and the West
-// Coast, a viaduct on the floor of a steep alpine gorge. On the right, Brooklyn,
-// a hillside suburb of Wellington, the capital. The experiment is the one a field
-// study would do: spectral acceleration at a ridge site over a reference site a
-// few kilometres away, with near-identical Vs30, so topography is the main
-// difference between them.
+// Coast, a viaduct on the floor of a steep alpine gorge. On the right,
+// Sugarloaf, the summit of the Port Hills above Christchurch, under the 121
+// metre Kordia transmission tower. The experiment is the one a field study
+// would do: spectral acceleration at a ridge site over a reference site a few
+// kilometres away, with similar Vs30, so topography is the main difference
+// between them. At Sugarloaf there is no one obvious reference, so it is every
+// site within 10 km that is flat at the 1, 2.5 and 5 km scales and on rock
+// like the summit: fifteen of them, round the flanks and the harbour. The
+// Vs30 condition is what keeps the Christchurch basin out.
 // Otira: a 160 metre ridge above the SH73 valley gets 1.2 to 1.6 times the
 // shaking of the valley floor between 1 and 5 seconds, peaking near 2.8 times at
 // 2 seconds -- a period our earlier 0.5 Hz runs handed to the stochastic method
 // and could not see. One event at 150 km, so treat the peak as one sample.
-// Brooklyn's 45 metres of relief barely registers: within a few percent of one
-// at 3 seconds, about 1.25 near 2 seconds. Both sit on the ensemble
-// from our 81-event topography study.
+// Sugarloaf: nothing at 1 to 2 seconds, then the ratio climbs to about 1.6 at
+// 3 seconds and peaks near 2.4 at 4 seconds, above every one of the fifteen
+// references. The field arrays on the Port Hills saw ridge amplification at
+// 1 to 3 hertz, from the crest's own shape. This is a different scale: the
+// whole massif, five to ten kilometres across, amplifying at 3 to 5 seconds.
+// Same hill, different feature, depending on the period you look at.
 // (Prefilter arm. Explicit topography only: this event has no flat-surface
 // companion run, so the paper's NT check is not available here.)
-== Topography on this rupture: Otira Viaduct and Wellington
+== Topography on this rupture: Otira Viaduct and the Port Hills
 
 // One column per ridge/reference pair: what is there, where the two sites sit,
 // and the ratio, drawn large. The panels are separate PNGs from
@@ -499,12 +506,12 @@
     [David Palmer, CC BY-SA 4.0, via Wikimedia Commons],
   ),
   pair(
-    [Brooklyn, Wellington],
-    [hillside suburb of the capital],
-    [1.3 km apart · $H_(1250)$ 45 / 1 m · $V_(S 30)$ 719 / 715 m/s · $R_"rup"$ 59 km],
-    "figures/photos/brooklyn-1977.jpg",
-    "brooklyn",
-    [Archives New Zealand (1977), CC BY 2.0, via Wikimedia Commons],
+    [Sugarloaf, Port Hills],
+    [summit above Christchurch, 121 m tower],
+    [15 flat rock references, 2–9 km · $H_(1250)$ 95 m · $V_(S 30)$ 1038 / 839–1033 m/s · $R_"rup"$ 168 km],
+    "figures/photos/sugarloaf-bowenvale.jpg",
+    "sugarloaf",
+    [Michal Klajban, CC BY-SA 4.0, via Wikimedia Commons],
   ),
 )
 

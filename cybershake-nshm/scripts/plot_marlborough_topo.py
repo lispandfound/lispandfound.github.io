@@ -8,10 +8,21 @@ The paired-site experiment from the topographic-effects paper
 (~/papers/moderate_crustal_topographic_effects, scripts/fig_paired_sites.py):
 take the ratio of pSA (RotD50) at a ridge site to that at a nearby reference
 site, as a field study would, and read it as topographic amplification. The
-pairs are the paper's own, chosen there from the dense array with: outside the
-supergrid, <= 5 km apart, |dVs30| <= 150 m/s, reference |H_1250| <= 10 m, ridge
-H_1250 >= 40 m. All four sites exist in this run and none sit in the supergrid,
-so nothing is reselected.
+Otira pair is the paper's own, chosen there from the dense array with: outside
+the supergrid, <= 5 km apart, |dVs30| <= 150 m/s, reference |H_1250| <= 10 m,
+ridge H_1250 >= 40 m. Both sites exist in this run and neither sits in the
+supergrid, so nothing is reselected.
+
+Sugarloaf has no single reference. Its target is the run station nearest the
+Kordia tower on the Port Hills summit, and its references are every station
+that is flat at three scales (|H_1250| <= 10 m, |H_2500| <= 20 m,
+|H_5000| <= 30 m), within 10 km, outside the supergrid and within 200 m/s in
+Vs30. A reference flat at 1250 m alone can sit in a valley or on the massif at
+the 2.5-5 km scale that 2-5 s waves see; the Vs30 window is what keeps the
+Christchurch basin out. The ratio is drawn as the geometric mean over the
+references, with their 16th-84th percentile as a band. A single-event
+flat-site-against-flat-site version of the same ratio spreads 0.74-1.29
+(P10-P90) at 2 s, so one pair inside that range says nothing.
 
 What this figure CANNOT show, and the slide has to say: this event was run with
 explicit topography only. There is no squashed (NT) companion, so the paper's
@@ -32,6 +43,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 import h5py
@@ -43,13 +55,22 @@ PAPER = Path("/home/jake/papers/moderate_crustal_topographic_effects")
 DEM50 = Path("/var/tmp/copernicus/nz_dem_50m.tif")  # Copernicus GLO-30 at 50 m, NZTM
 HIGHWAYS = PAPER / "data" / "raw" / "osm_state_highways" / "overpass.json"
 
-# (label, file slug, ridge, reference): the paper's PAIRS_SEL, minus the
-# Kaikoura coast.
+# (label, file slug, ridge, reference). The reference is a station name, or a
+# NeutralRefs rule that selects every qualifying station.
+D_HILL = 1250.0  # m, diameter of the H_d averaging disk (Tiwari et al. Hill model)
+
+
+@dataclass(frozen=True)
+class NeutralRefs:
+    radius: float  # m
+    dvs30: float  # m/s
+    max_h: tuple = ((1250.0, 10.0), (2500.0, 20.0), (5000.0, 30.0))  # (D, |H_D| limit), m
+
+
 PAIRS = [
     ("Otira Viaduct", "otira", "fKtoMWL", "fKtnOWL"),
-    ("Wellington, Brooklyn", "brooklyn", "kzeniWE", "kAWduWE"),
+    ("Sugarloaf, Port Hills", "sugarloaf", "dwd0ICA", NeutralRefs(radius=10_000.0, dvs30=200.0)),
 ]
-D_HILL = 1250.0  # m, diameter of the H_d averaging disk (Tiwari et al. Hill model)
 F_DET = 1.0  # Hz, LF/HF merge; shorter periods are the stochastic HF's, not drawn
 
 plt.rcParams.update(
@@ -98,6 +119,22 @@ def load_psa(path: Path, sites: list[str]) -> dict:
     for s, r in idx.items():
         out[s] = {"psa": psa[pos[r]], **{k: float(v[pos[r]]) for k, v in meta.items()}}
     return out
+
+
+def select_references(path: Path, target: str, rule: NeutralRefs) -> list[str]:
+    """Stations that satisfy `rule` around `target`, nearest first."""
+    with h5py.File(path, "r") as f:
+        g = f["pSA"]
+        names = g["station"][:].astype(str)
+        lat, lon = g["latitude"][:], g["longitude"][:]
+        vs30, sg = g["vs30"][:], g["supergrid_depth_gp"][:]
+    x, y = to_nztm(lon, lat)
+    t = int(np.flatnonzero(names == target)[0])
+    d = np.hypot(x - x[t], y - y[t])
+    cand = np.flatnonzero((d <= rule.radius) & (sg == 0) & (np.abs(vs30 - vs30[t]) <= rule.dvs30))
+    refs = [i for i in cand[np.argsort(d[cand])] if i != t
+            and all(abs(relative_elevation(x[i], y[i], dh)[0]) <= lim for dh, lim in rule.max_h)]
+    return [str(names[i]) for i in refs]
 
 
 def relative_elevation(x: float, y: float, d: float = D_HILL) -> tuple[float, float]:
@@ -183,8 +220,11 @@ def main() -> None:
     ap.add_argument("--dpi", type=int, default=300)
     args = ap.parse_args()
 
-    sites = [s for _, _, r, q in PAIRS for s in (r, q)]
-    ims = load_psa(args.data / args.arm / "intensity_measures.h5", sites)
+    im_path = args.data / args.arm / "intensity_measures.h5"
+    refs = {slug: select_references(im_path, ridge, ref) if isinstance(ref, NeutralRefs) else [ref]
+            for _, slug, ridge, ref in PAIRS}
+    sites = sorted({s for _, slug, ridge, _ in PAIRS for s in (ridge, *refs[slug])})
+    ims = load_psa(im_path, sites)
     period = ims["period"]
     keep = (period >= 1 / F_DET) & (period <= 10)
     args.out_dir.mkdir(parents=True, exist_ok=True)
@@ -192,32 +232,44 @@ def main() -> None:
     # The slide lays each pair out as photo + map over a wide ratio plot, so
     # every panel is its own PNG and Typst does the composition. The ratio
     # plots share a y range so the two pairs read against each other.
+    # ratios[slug] = (geometric mean, P16, P84) over the references; for a
+    # single reference all three are the one ratio.
     ratios = {}
-    for label, slug, ridge, ref in PAIRS:
-        r, q = ims[ridge], ims[ref]
-        for s in (r, q):
+    for label, slug, ridge, _ in PAIRS:
+        r, qs = ims[ridge], [ims[q] for q in refs[slug]]
+        assert qs, f"{label}: no reference satisfies the rule"
+        for s in (r, *qs):
             assert s["supergrid_depth_gp"] == 0, "pair site inside the supergrid"
             s["x"], s["y"] = to_nztm(s["longitude"], s["latitude"])
             s["h"], s["z"] = relative_elevation(s["x"], s["y"])
-        dist = float(np.hypot(r["x"] - q["x"], r["y"] - q["y"]))
-        ratios[slug] = r["psa"] / q["psa"]
+        dist = np.array([np.hypot(r["x"] - q["x"], r["y"] - q["y"]) for q in qs])
+        ln = np.log(r["psa"]) - np.log([q["psa"] for q in qs])
+        ratios[slug] = tuple(np.exp(v) for v in (ln.mean(0), *np.percentile(ln, [16, 84], axis=0)))
         print(f"{label}: ridge {ridge} ({r['latitude']:.4f}, {r['longitude']:.4f}) "
-              f"H1250 {r['h']:.1f} m, z {r['z']:.0f} m, Vs30 {r['vs30']:.0f}; "
-              f"ref {ref} ({q['latitude']:.4f}, {q['longitude']:.4f}) H1250 {q['h']:.1f} m, "
-              f"z {q['z']:.0f} m, Vs30 {q['vs30']:.0f}; {dist / 1e3:.2f} km apart; Rrup {r['rrup']:.0f} km")
+              f"H1250 {r['h']:.1f} m, z {r['z']:.0f} m, Vs30 {r['vs30']:.0f}; Rrup {r['rrup']:.0f} km; "
+              f"{len(qs)} reference(s), {dist.min() / 1e3:.2f}-{dist.max() / 1e3:.2f} km away")
+        for name, q in zip(refs[slug], qs):
+            print(f"    ref {name} ({q['latitude']:.4f}, {q['longitude']:.4f}) H1250 {q['h']:.1f} m, "
+                  f"z {q['z']:.0f} m, Vs30 {q['vs30']:.0f}")
         for t in (1, 2, 3, 5, 7.5, 10):
             k = int(np.argmin(np.abs(period - t)))
-            print(f"    T = {period[k]:g} s: ridge/ref {ratios[slug][k]:.3f}")
+            gm, lo, hi = (a[k] for a in ratios[slug])
+            print(f"    T = {period[k]:g} s: ridge/ref {gm:.3f} (P16-P84 {lo:.3f}-{hi:.3f})")
 
-        # Map
+        # Map: centred on the pair, or on the target when the references
+        # surround it.
         fig, axm = plt.subplots(figsize=(4.2, 4.2), constrained_layout=True)
-        cx, cy = (r["x"] + q["x"]) / 2, (r["y"] + q["y"]) / 2
-        half = max(3500.0, 0.5 * dist + 2500)
+        if len(qs) == 1:
+            cx, cy = (r["x"] + qs[0]["x"]) / 2, (r["y"] + qs[0]["y"]) / 2
+            half = max(3500.0, 0.5 * dist[0] + 2500)
+        else:
+            cx, cy = r["x"], r["y"]
+            half = dist.max() + 1500
         hillshade(axm, cx - half, cx + half, cy - half, cy + half)
-        axm.plot(r["x"], r["y"], "^", ms=20, mfc=RIDGE_COLOUR, mec="white", mew=1.6, zorder=6,
+        axm.plot([q["x"] for q in qs], [q["y"] for q in qs], "o", ms=17 if len(qs) == 1 else 10,
+                 mfc=REF_COLOUR, mec="white", mew=1.6 if len(qs) == 1 else 1.0, zorder=6, label="reference")
+        axm.plot(r["x"], r["y"], "^", ms=20, mfc=RIDGE_COLOUR, mec="white", mew=1.6, zorder=7,
                  label="ridge")
-        axm.plot(q["x"], q["y"], "o", ms=17, mfc=REF_COLOUR, mec="white", mew=1.6, zorder=6,
-                 label="reference")
         axm.set_xlim(cx - half, cx + half)
         axm.set_ylim(cy - half, cy + half)
         axm.set_aspect("equal")
@@ -228,7 +280,7 @@ def main() -> None:
             sp.set_visible(True)
             sp.set_linewidth(0.6)
             sp.set_color("#8a8a8a")
-        scale_bar(axm)
+        scale_bar(axm, km=2 if half < 6000 else 5)
         # Separation, H_1250 and Vs30 go in the slide text: at the size the
         # map is shown, a caption drawn here would be unreadable.
         out = args.out_dir / f"marlborough-topo-{slug}-map.png"
@@ -236,12 +288,15 @@ def main() -> None:
         plt.close(fig)
         print(f"wrote {out}")
 
-    hi = max(ratios[slug][keep].max() for slug in ratios) * 1.05
-    lo = min(0.9, min(ratios[slug][keep].min() for slug in ratios))
+    hi = max(ratios[slug][2][keep].max() for slug in ratios) * 1.05
+    lo = min(0.9, min(ratios[slug][1][keep].min() for slug in ratios))
     for label, slug, _, _ in PAIRS:
+        gm, p16, p84 = ratios[slug]
         fig, axr = plt.subplots(figsize=(6.4, 3.3), constrained_layout=True)
         axr.axhline(1, color="#8a8a8a", lw=1.0, zorder=1)
-        axr.plot(period[keep], ratios[slug][keep], "-", color=T_COLOUR, lw=2.8, zorder=3)
+        if len(refs[slug]) > 1:
+            axr.fill_between(period[keep], p16[keep], p84[keep], color=RIDGE_COLOUR, alpha=0.18, lw=0, zorder=2)
+        axr.plot(period[keep], gm[keep], "-", color=T_COLOUR, lw=2.8, zorder=3)
         axr.set_xscale("log")
         ticks = [1, 2, 3, 5, 10]
         axr.set_xticks(ticks, [f"{t:g}" for t in ticks])
