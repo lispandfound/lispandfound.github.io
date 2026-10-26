@@ -370,9 +370,9 @@
 
 #text(0.55em, fill: quiet.darken(20%))[Source geometry: Aisling O'Kane (VUW)]
 
-// SAY: [video] One event with every change in it: the 1848 Marlborough
+// SAY: One event with every change in it: the 1848 Marlborough
 // earthquake, Mw 7.2 here, run in SW4 with explicit topography through the new
-// velocity model. The clock runs at twice real time.
+// velocity model.
 // The rupture starts at the star and runs both ways along the fault: north to
 // the coast at Blenheim, south and round the bend at the southern end. Then the
 // rupture is over, the Wairau basin under Blenheim keeps ringing for another
@@ -384,25 +384,27 @@
 // re-render with the segments drawn or keep this framing.
 == Marlborough 1848, in SW4 with topography
 
-#v(0.2em)
-// Poster frame for the PDF. make_pptx.py and tools/make_html.py lay out/marlborough-highlight.mp4
-// (19.8 s) exactly over it, from the position and size recorded in <video>.
-#align(center, box(height: 86%, layout(size => context {
-  let poster = image("out/png/marlborough-poster.png", height: size.height)
-  let p = here().position()
-  let m = measure(poster)
-  [#metadata((
-    src: "out/marlborough-highlight.mp4",
-    poster: "out/png/marlborough-poster.png",
-    x: p.x.pt(),
-    y: p.y.pt(),
-    width: m.width.pt(),
-    height: m.height.pt(),
-    page-width: page.width.pt(),
-    page-height: page.height.pt(),
-  )) <video>]
-  poster
-})))
+// Three stills from out/marlborough-highlight.mp4 in place of the video, cut
+// with ffmpeg at 7.5 s, 11.5 s and 19.5 s.
+// The rupture is the large frame; the other two stack beside it at half height.
+#let still(slug, caption, height) = stack(
+  spacing: 0.3em,
+  image("out/png/marlborough-still-" + slug + ".png", height: height),
+  text(0.55em, fill: quiet.darken(25%))[#caption],
+)
+
+#v(1fr)
+#align(center, grid(
+  columns: 2,
+  column-gutter: 0.6em,
+  still("rupture", [Rupture runs both ways along the fault segments], 9.6cm),
+  stack(
+    spacing: 0.5em,
+    still("basin", [Rupture over; the Wairau basin keeps ringing], 4.2cm),
+    still("endcard", [Strongest shaking felt], 4.2cm),
+  ),
+))
+#v(1fr)
 
 // SAY: Topography, at two places where it matters. On the left, the Otira
 // Viaduct: the main road over the Southern Alps between Canterbury and the West
