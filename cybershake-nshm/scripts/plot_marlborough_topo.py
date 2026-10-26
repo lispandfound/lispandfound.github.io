@@ -6,30 +6,36 @@
 
 The paired-site experiment from the topographic-effects paper
 (~/papers/moderate_crustal_topographic_effects, scripts/fig_paired_sites.py):
-take the ratio of pSA (RotD50) at a ridge site to that at a nearby reference
-site, as a field study would, and read it as topographic amplification. The
-Otira pair is the paper's own, chosen there from the dense array with: outside
-the supergrid, <= 5 km apart, |dVs30| <= 150 m/s, reference |H_1250| <= 10 m,
-ridge H_1250 >= 40 m. Both sites exist in this run and neither sits in the
-supergrid, so nothing is reselected.
+take the ratio of pSA (RotD50) at a ridge site to that at nearby reference
+sites, as a field study would, and read it as topographic amplification.
 
-Sugarloaf has no single reference. Its target is the run station nearest the
-Kordia tower on the Port Hills summit, and its references are every station
-that is flat at three scales (|H_1250| <= 10 m, |H_2500| <= 20 m,
-|H_5000| <= 30 m), within 10 km, outside the supergrid and within 200 m/s in
-Vs30. A reference flat at 1250 m alone can sit in a valley or on the massif at
-the 2.5-5 km scale that 2-5 s waves see; the Vs30 window is what keeps the
-Christchurch basin out. The ratio is drawn as the geometric mean over the
-references, with their 16th-84th percentile as a band. A single-event
-flat-site-against-flat-site version of the same ratio spreads 0.74-1.29
-(P10-P90) at 2 s, so one pair inside that range says nothing.
+The references are every station that is flat at three scales
+(|H_1250| <= 10 m, |H_2500| <= 20 m, |H_5000| <= 30 m), outside the supergrid,
+within a radius and a Vs30 window of the target. A reference flat at 1250 m
+alone can sit in a valley or on a massif at the 2.5-5 km scale that 2-5 s
+waves see. The paper's Otira reference, fKtnOWL at the viaduct, is that case:
+H_1250 is about 1 m but H_5000 is -173 m, so ridge/viaduct (2.8 at 2 s)
+multiplies ridge amplification by the valley's de-amplification. Here the
+Otira ridge (the paper's fKtoMWL) and the viaduct are each scored against flat
+references instead, so the two curves are the topographic effect on the slopes
+above the road and at the structure. Only one station qualifies within 8 km of
+Otira, so its radius is 12 km, which gives three.
+
+Sugarloaf's target is the run station nearest the Kordia tower on the Port
+Hills summit, with references within 10 km and 200 m/s; the Vs30 window is
+what keeps the Christchurch basin out.
+
+Ratios are the geometric mean over the references, with their 16th-84th
+percentile as a band. A single-event flat-site-against-flat-site version of the
+same ratio spreads 0.74-1.29 (P10-P90) at 2 s, so one pair inside that range
+says nothing.
 
 What this figure CANNOT show, and the slide has to say: this event was run with
 explicit topography only. There is no squashed (NT) companion, so the paper's
 check -- the same ratio without topography, which measures how far the pair
 departs from "similar site conditions" -- is absent. Everything here is T.
 
-One event, so one curve per pair: no median, no interquartile band. The arm is
+One event, so the band is spread across references, not across events. The arm is
 `prefilter` (SW4 source prefilter on, the 26.7.1Hz defaults). The run is
 deterministic to ~1 Hz (bb flo = 1 Hz, SW4 prefilter corner 1.12 Hz), so only
 periods of 1 s and longer are drawn.
@@ -55,8 +61,6 @@ PAPER = Path("/home/jake/papers/moderate_crustal_topographic_effects")
 DEM50 = Path("/var/tmp/copernicus/nz_dem_50m.tif")  # Copernicus GLO-30 at 50 m, NZTM
 HIGHWAYS = PAPER / "data" / "raw" / "osm_state_highways" / "overpass.json"
 
-# (label, file slug, ridge, reference). The reference is a station name, or a
-# NeutralRefs rule that selects every qualifying station.
 D_HILL = 1250.0  # m, diameter of the H_d averaging disk (Tiwari et al. Hill model)
 
 
@@ -67,9 +71,11 @@ class NeutralRefs:
     max_h: tuple = ((1250.0, 10.0), (2500.0, 20.0), (5000.0, 30.0))  # (D, |H_D| limit), m
 
 
+# (label, file slug, ridge, reference rule, structure). The structure, where
+# there is one, is scored against its own flat references under the same rule.
 PAIRS = [
-    ("Otira Viaduct", "otira", "fKtoMWL", "fKtnOWL"),
-    ("Sugarloaf, Port Hills", "sugarloaf", "dwd0ICA", NeutralRefs(radius=10_000.0, dvs30=200.0)),
+    ("Otira Viaduct", "otira", "fKtoMWL", NeutralRefs(radius=12_000.0, dvs30=150.0), "fKtnOWL"),
+    ("Sugarloaf, Port Hills", "sugarloaf", "dwd0ICA", NeutralRefs(radius=10_000.0, dvs30=200.0), None),
 ]
 F_DET = 1.0  # Hz, LF/HF merge; shorter periods are the stochastic HF's, not drawn
 
@@ -177,7 +183,7 @@ def hillshade(ax, x0, x1, y0, y1) -> None:
                levels=np.arange(0, 4000, 250), colors="#6f6f6f", linewidths=0.35)
 
 
-def highways(ax) -> None:
+def highways(ax, loc: str = "upper right") -> None:
     """OSM state highways (paper extract); tunnels and shelters dashed."""
     if not HIGHWAYS.exists():
         print(f"no {HIGHWAYS}; skipping highways")
@@ -196,7 +202,7 @@ def highways(ax) -> None:
             refs.update(r.replace(" ", "") for r in w["tags"]["ref"].split(";") if r.startswith("SH"))
     if refs:
         ax.plot([], [], color=ROAD_COLOUR, lw=2, label=", ".join(sorted(refs, key=lambda r: (len(r), r))))
-        ax.legend(loc="upper right", fontsize=17, handlelength=1.2, markerscale=0.7, frameon=True, framealpha=0.85,
+        ax.legend(loc=loc, fontsize=13, handlelength=1.2, markerscale=0.7, frameon=True, framealpha=0.85,
                   borderpad=0.3, edgecolor="none")
 
 
@@ -221,59 +227,60 @@ def main() -> None:
     args = ap.parse_args()
 
     im_path = args.data / args.arm / "intensity_measures.h5"
-    refs = {slug: select_references(im_path, ridge, ref) if isinstance(ref, NeutralRefs) else [ref]
-            for _, slug, ridge, ref in PAIRS}
-    sites = sorted({s for _, slug, ridge, _ in PAIRS for s in (ridge, *refs[slug])})
+    targets = {(slug, t): rule for _, slug, ridge, rule, struct in PAIRS for t in (ridge, struct) if t}
+    refs = {k: select_references(im_path, k[1], rule) for k, rule in targets.items()}
+    for k, names in refs.items():
+        assert names, f"{k}: no reference satisfies the rule"
+    sites = sorted({s for (_, t), names in refs.items() for s in (t, *names)})
     ims = load_psa(im_path, sites)
     period = ims["period"]
     keep = (period >= 1 / F_DET) & (period <= 10)
     args.out_dir.mkdir(parents=True, exist_ok=True)
+    for name in sites:
+        s = ims[name]
+        assert s["supergrid_depth_gp"] == 0, f"{name} inside the supergrid"
+        s["x"], s["y"] = to_nztm(s["longitude"], s["latitude"])
+        s["h"], s["z"] = relative_elevation(s["x"], s["y"])
 
-    # The slide lays each pair out as photo + map over a wide ratio plot, so
-    # every panel is its own PNG and Typst does the composition. The ratio
-    # plots share a y range so the two pairs read against each other.
-    # ratios[slug] = (geometric mean, P16, P84) over the references; for a
-    # single reference all three are the one ratio.
+    # ratios[(slug, target)] = (geometric mean, P16, P84) over the references.
     ratios = {}
-    for label, slug, ridge, _ in PAIRS:
-        r, qs = ims[ridge], [ims[q] for q in refs[slug]]
-        assert qs, f"{label}: no reference satisfies the rule"
-        for s in (r, *qs):
-            assert s["supergrid_depth_gp"] == 0, "pair site inside the supergrid"
-            s["x"], s["y"] = to_nztm(s["longitude"], s["latitude"])
-            s["h"], s["z"] = relative_elevation(s["x"], s["y"])
+    for (slug, t), names in refs.items():
+        r, qs = ims[t], [ims[q] for q in names]
         dist = np.array([np.hypot(r["x"] - q["x"], r["y"] - q["y"]) for q in qs])
         ln = np.log(r["psa"]) - np.log([q["psa"] for q in qs])
-        ratios[slug] = tuple(np.exp(v) for v in (ln.mean(0), *np.percentile(ln, [16, 84], axis=0)))
-        print(f"{label}: ridge {ridge} ({r['latitude']:.4f}, {r['longitude']:.4f}) "
+        ratios[slug, t] = tuple(np.exp(v) for v in (ln.mean(0), *np.percentile(ln, [16, 84], axis=0)))
+        print(f"{slug}: {t} ({r['latitude']:.4f}, {r['longitude']:.4f}) "
               f"H1250 {r['h']:.1f} m, z {r['z']:.0f} m, Vs30 {r['vs30']:.0f}; Rrup {r['rrup']:.0f} km; "
               f"{len(qs)} reference(s), {dist.min() / 1e3:.2f}-{dist.max() / 1e3:.2f} km away")
-        for name, q in zip(refs[slug], qs):
+        for name, q in zip(names, qs):
             print(f"    ref {name} ({q['latitude']:.4f}, {q['longitude']:.4f}) H1250 {q['h']:.1f} m, "
                   f"z {q['z']:.0f} m, Vs30 {q['vs30']:.0f}")
-        for t in (1, 2, 3, 5, 7.5, 10):
-            k = int(np.argmin(np.abs(period - t)))
-            gm, lo, hi = (a[k] for a in ratios[slug])
-            print(f"    T = {period[k]:g} s: ridge/ref {gm:.3f} (P16-P84 {lo:.3f}-{hi:.3f})")
+        for T in (1, 2, 3, 5, 7.5, 10):
+            k = int(np.argmin(np.abs(period - T)))
+            gm, lo, hi = (a[k] for a in ratios[slug, t])
+            print(f"    T = {period[k]:g} s: {gm:.3f} (P16-P84 {lo:.3f}-{hi:.3f})")
 
-        # Map: centred on the pair, or on the target when the references
-        # surround it.
+    # The slide lays each pair out as photo + map over a wide ratio plot, so
+    # every panel is its own PNG and Typst does the composition.
+    for label, slug, ridge, _, struct in PAIRS:
+        r = ims[ridge]
+        qs = [ims[q] for q in sorted({q for (sl, _), names in refs.items() if sl == slug for q in names})]
+        # Map: centred on the target, wide enough for every reference.
         fig, axm = plt.subplots(figsize=(4.2, 4.2), constrained_layout=True)
-        if len(qs) == 1:
-            cx, cy = (r["x"] + qs[0]["x"]) / 2, (r["y"] + qs[0]["y"]) / 2
-            half = max(3500.0, 0.5 * dist[0] + 2500)
-        else:
-            cx, cy = r["x"], r["y"]
-            half = dist.max() + 1500
+        cx, cy = r["x"], r["y"]
+        half = max(np.hypot(q["x"] - cx, q["y"] - cy) for q in qs) + 1500
         hillshade(axm, cx - half, cx + half, cy - half, cy + half)
-        axm.plot([q["x"] for q in qs], [q["y"] for q in qs], "o", ms=17 if len(qs) == 1 else 10,
-                 mfc=REF_COLOUR, mec="white", mew=1.6 if len(qs) == 1 else 1.0, zorder=6, label="reference")
-        axm.plot(r["x"], r["y"], "^", ms=20, mfc=RIDGE_COLOUR, mec="white", mew=1.6, zorder=7,
-                 label="ridge")
+        axm.plot([q["x"] for q in qs], [q["y"] for q in qs], "o", ms=10, mfc=REF_COLOUR, mec="white", mew=1.0,
+                 zorder=6, label="flat reference")
+        axm.plot(r["x"], r["y"], "^", ms=16, mfc=RIDGE_COLOUR, mec="white", mew=1.4, zorder=7, label="ridge")
+        if struct:
+            v = ims[struct]
+            axm.plot(v["x"], v["y"], "s", ms=11, mfc=ROAD_COLOUR, mec="black", mew=1.2, zorder=7, label="viaduct")
         axm.set_xlim(cx - half, cx + half)
         axm.set_ylim(cy - half, cy + half)
         axm.set_aspect("equal")
-        highways(axm)
+        # Otira's references sit north of the pair, so its legend goes low.
+        highways(axm, loc="lower right" if struct else "upper right")
         axm.set_xticks([])
         axm.set_yticks([])
         for sp in axm.spines.values():
@@ -288,29 +295,37 @@ def main() -> None:
         plt.close(fig)
         print(f"wrote {out}")
 
-    hi = max(ratios[slug][2][keep].max() for slug in ratios) * 1.05
-    lo = min(0.9, min(ratios[slug][1][keep].min() for slug in ratios))
-    for label, slug, _, _ in PAIRS:
-        gm, p16, p84 = ratios[slug]
+    # The ratio plots share a y range so the two pairs read against each other.
+    hi = max(a[2][keep].max() for a in ratios.values()) * 1.05
+    lo = min(0.9, min(a[1][keep].min() for a in ratios.values()) * 0.95)
+    for label, slug, ridge, _, struct in PAIRS:
         fig, axr = plt.subplots(figsize=(6.4, 3.3), constrained_layout=True)
         axr.axhline(1, color="#8a8a8a", lw=1.0, zorder=1)
-        if len(refs[slug]) > 1:
-            axr.fill_between(period[keep], p16[keep], p84[keep], color=RIDGE_COLOUR, alpha=0.18, lw=0, zorder=2)
-        axr.plot(period[keep], gm[keep], "-", color=T_COLOUR, lw=2.8, zorder=3)
+        curves = [(ridge, "ridge", T_COLOUR, RIDGE_COLOUR, "-")]
+        if struct:
+            curves.append((struct, "viaduct", ROAD_COLOUR, ROAD_COLOUR, "--"))
+        for t, name, colour, band, ls in curves:
+            gm, p16, p84 = ratios[slug, t]
+            axr.fill_between(period[keep], p16[keep], p84[keep], color=band, alpha=0.18, lw=0, zorder=2)
+            axr.plot(period[keep], gm[keep], ls, color=colour, lw=2.8, zorder=3, label=name)
+        if struct:
+            axr.legend(loc="upper right", fontsize=14, handlelength=2.2)
         axr.set_xscale("log")
         ticks = [1, 2, 3, 5, 10]
         axr.set_xticks(ticks, [f"{t:g}" for t in ticks])
-        axr.minorticks_off()
         axr.set_xlim(0.95, 10.5)
+        axr.set_yscale("log")
+        axr.minorticks_off()
+        yt = [v for v in (0.5, 0.75, 1, 1.5, 2, 3) if lo <= v <= hi]
+        axr.set_yticks(yt, [f"{v:g}" for v in yt])
         axr.set_ylim(lo, hi)
-        axr.set_ylabel("pSA ridge / reference", fontsize=15)
+        axr.set_ylabel("pSA / flat references", fontsize=15)
         axr.set_xlabel("Period, $T$ (s)", fontsize=15)
         axr.tick_params(labelsize=14)
         out = args.out_dir / f"marlborough-topo-{slug}-ratio.png"
         fig.savefig(out, dpi=args.dpi)
         plt.close(fig)
         print(f"wrote {out}")
-
 
 if __name__ == "__main__":
     main()

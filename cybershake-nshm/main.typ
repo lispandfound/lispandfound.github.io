@@ -451,16 +451,27 @@
 // Coast, a viaduct on the floor of a steep alpine gorge. On the right,
 // Sugarloaf, the summit of the Port Hills above Christchurch, under the 121
 // metre Kordia transmission tower. The experiment is the one a field study
-// would do: spectral acceleration at a ridge site over a reference site a few
+// would do: spectral acceleration at a site over reference sites a few
 // kilometres away, with similar Vs30, so topography is the main difference
-// between them. At Sugarloaf there is no one obvious reference, so it is every
-// site within 10 km that is flat at the 1, 2.5 and 5 km scales and on rock
-// like the summit: fifteen of them, round the flanks and the harbour. The
-// Vs30 condition is what keeps the Christchurch basin out.
-// Otira: a 160 metre ridge above the SH73 valley gets 1.2 to 1.6 times the
-// shaking of the valley floor between 1 and 5 seconds, peaking near 2.8 times at
-// 2 seconds -- a period our earlier 0.5 Hz runs handed to the stochastic method
-// and could not see. One event at 150 km, so treat the peak as one sample.
+// between them. The references have to be flat at every scale the waves see,
+// not just locally: every site flat at the 1, 2.5 and 5 km scales. A site that
+// looks flat close up can sit in a valley at the 5 km scale, and valleys shake
+// less, so a valley reference inflates the ratio.
+// Otira: the road runs along the floor of the gorge; the ridge station is
+// 950 metres higher, three kilometres east. Against flat sites, the slopes
+// above the road shake 1.5 to 2.2 times as hard between 1 and 3 seconds -- a
+// band our earlier 0.5 Hz runs handed to the stochastic method and could not
+// see. The valley floor at the viaduct goes the other way: about half at
+// 2 seconds. So the hazard to this road is what comes down the slopes onto
+// it. At these periods that means large, deep-seated landslides like Falling
+// Mountain in 1929; rockfall is a short-period problem the simulation doesn't
+// resolve. The viaduct is not simply shielded, though: at 1 second it is
+// about 1.5 times a flat site.
+// Absolute shaking here is small, 0.01 g at 150 km. What carries over to a
+// close event, an Alpine Fault rupture, is the ratio. Only three flat sites
+// qualify in this terrain, so treat it as one sample.
+// At Sugarloaf that is fifteen rock sites round the flanks and the harbour;
+// the Vs30 condition is what keeps the Christchurch basin out.
 // Sugarloaf: nothing at 1 to 2 seconds, then the ratio climbs to about 1.6 at
 // 3 seconds and peaks near 2.4 at 4 seconds, above every one of the fifteen
 // references. The field arrays on the Port Hills saw ridge amplification at
@@ -500,7 +511,7 @@
   pair(
     [Otira Viaduct],
     [highway through the Southern Alps],
-    [2.9 km apart · $H_(1250)$ 163 / 1 m · $V_(S 30)$ 850 / 801 m/s · $R_"rup"$ 153 km],
+    [ridge 1840 m, viaduct 891 m · 3 flat references, 2–11 km · $V_(S 30)$ 850 / 801 m/s · $R_"rup"$ 153 km],
     "figures/photos/otira-viaduct.jpg",
     "otira",
     [David Palmer, CC BY-SA 4.0, via Wikimedia Commons],
