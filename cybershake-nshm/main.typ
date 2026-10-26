@@ -426,25 +426,24 @@
 == Marlborough 1848, in SW4 with topography
 
 // Three stills from out/marlborough-highlight.mp4 in place of the video, cut
-// with ffmpeg at 7.5 s, 11.5 s and 19.5 s.
-// The rupture is the large frame; the other two stack beside it at half height.
-#let still(slug, caption, height) = stack(
-  spacing: 0.3em,
-  image("out/png/marlborough-still-" + slug + ".png", height: height),
-  text(0.55em, fill: quiet.darken(25%))[#caption],
+// with ffmpeg at 7.5 s, 11.5 s and 19.5 s and cropped to the same 1080 x 780
+// window on the action (x offsets 470, 280 and 450, y offset 165, of
+// 1920 x 1080), so the three sit side by side at one size. The crop drops the
+// movie's title, clock and colourbar, so the captions carry the clock.
+#let still(slug, caption) = stack(
+  spacing: 0.4em,
+  image("out/png/marlborough-still-" + slug + ".png", width: 100%),
+  align(center, text(0.55em, fill: quiet.darken(25%))[#caption]),
 )
 
 #v(1fr)
-#align(center, grid(
-  columns: 2,
+#grid(
+  columns: (1fr, 1fr, 1fr),
   column-gutter: 0.6em,
-  still("rupture", [Rupture runs both ways along the fault segments], 9.6cm),
-  stack(
-    spacing: 0.5em,
-    still("basin", [Rupture over; the Wairau basin keeps ringing], 4.2cm),
-    still("endcard", [Strongest shaking felt], 4.2cm),
-  ),
-))
+  still("rupture", [14 s: rupture runs both ways along the fault]),
+  still("basin", [27 s: rupture over, the Wairau basin keeps ringing]),
+  still("endcard", [Strongest shaking felt]),
+)
 #v(1fr)
 
 // SAY: Topography, at two places where it matters. On the left, the Otira
