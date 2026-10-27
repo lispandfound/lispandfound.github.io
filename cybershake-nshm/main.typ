@@ -531,8 +531,8 @@
 // over the logic-tree prediction, at fifty-seven thousand sites.
 // On average the simulation is about twice the empirical model: an event term
 // of plus 0.76, a bit under one sigma. It is high at Blenheim and Wellington
-// alike, and it grows with period: about plus 0.2 at 1 second, 0.76 at 3, and
-// 1.4 at 10 seconds.
+// alike. On the right, the simulated 3-second motion itself in g against
+// distance: the density of stations, and the geometric mean through them.
 // On top of that offset is the pattern the empirical model cannot have: a
 // strong band running southwest along the ranges, and the Taranaki side of the
 // North Island below the prediction.
@@ -546,7 +546,7 @@
   column-gutter: 1.2em,
   align: horizon,
   image("out/png/marlborough-residual-map.png", height: 92%),
-  image("out/png/marlborough-residual-bias.png", width: 100%),
+  image("out/png/marlborough-residual-distance.png", width: 100%),
 )
 
 // SAY: The next twelve months. On the physics: a transition frequency of 2 Hz

@@ -17,10 +17,12 @@ The residual is ln(SA_sim / SA_NSHM) -- the ``map --diff`` order, run 1 over run
 2 -- with SA_sim the simulated RotD50 (``pSA/rotd50``) and the NSHM term
 ``pSA/empirical/NSHM2022/mean``, which is stored as the mean of ln SA, so no
 further logging. ``std_Total`` is its total sigma of ln SA; the sigma-normalised
-residual is printed only. The right panel is the top panel of ``eqvis bias``,
-swept over the same sites: the mean residual at each period with a ±1σ band of
-the between-site scatter, not the model's sigma, from 1/flo (the run's
-low-frequency limit) to 10 s. The file does not record which logic-tree
+residual is printed only. The right panel is the simulated pSA(3 s) itself, in
+g against Rrup over the same sites: a hexbin of station density, since 57k
+points overplot as a scatter, with the geometric mean in log-spaced Rrup bins
+drawn through it. The stations inside three NZCVM basins (eqvis's
+``load_basins`` outlines; Wellington includes Greater Wellington) are drawn over
+the density in their own colours. The file does not record which logic-tree
 branches were combined or how.
 
 The arm is ``prefilter``. 3 s is a stored period. Sites inside the SW4 supergrid
@@ -37,19 +39,18 @@ with the white halo eqvis gives every map label.
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.colors import BoundaryNorm
+import shapely
+from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, LogNorm
 from matplotlib.ticker import FuncFormatter, MaxNLocator
 
-from eqvis_workflow.bias import bias_statistics, draw_bias_curve
-from eqvis_workflow.constants import EMPIRICAL_BLUE, SIM_ONE_BLACK
+from eqvis_workflow.constants import SIM_ONE_BLACK
 from eqvis_workflow.data import im_label, open_ims, select_empirical, select_im
 from eqvis_workflow.display import Display
-from eqvis_workflow.geography import draw_coastline, draw_geometry, load_coastline
+from eqvis_workflow.geography import draw_coastline, draw_geometry, load_basins, load_coastline
 from eqvis_workflow.raster import fixed_symmetric_norm, label_ratios, rasterise
 import matplotlib.patheffects as patheffects
 
@@ -57,7 +58,6 @@ PERIOD = 3.0  # s
 LIMIT = 1.5  # ln units, symmetric colour limit
 MODEL = "NSHM2022"  # the group in the IM file
 SHOWN = "NSHM"  # how the figure names it
-LONGEST = 10.0  # s, the end of the period sweep
 TOWNS = {  # name: (lon, lat), label offset in points, ha, va
     "Nelson": ((173.284, -41.271), (-5, 0), "right", "center"),
     "Blenheim": ((173.954, -41.514), (6, -1), "left", "top"),
@@ -65,12 +65,31 @@ TOWNS = {  # name: (lon, lat), label offset in points, ha, va
     "Kaikōura": ((173.681, -42.400), (5, 0), "left", "center"),
     "Christchurch": ((172.637, -43.532), (5, 0), "left", "center"),
 }
+# Basins coloured on the distance panel: label, colour, NZCVM basin names. The
+# colours are the deck's stat orange and perf green, plus a purple, kept clear
+# of the map's red-blue and the grey cloud.
+BASINS = (
+    ("Nelson", "#eb811b", ("Nelson",)),
+    ("Wellington", "#7b4fa0", ("Wellington", "Greater Wellington")),
+    ("Canterbury", "#1f6f5c", ("Canterbury",)),
+)
 NEAR_KM = 5.0  # "town area" radius for the printed town residuals
 # The slide: drawn at 13.33 x 7.5 in, shown about a metre tall and read from the
 # back of a lecture theatre. Display turns that into the text scale (~1.9x).
 DESIGN = (13.33, 7.5)
 SHOWN_HEIGHT = 100.0  # cm
 VIEWING_DISTANCE = 5.0  # m
+
+
+def geomean_by_distance(x, y, edges, least=30):
+    """Geometric mean of y in each bin of x with enough sites, at the bin's log centre."""
+    mid, mu = [], []
+    for a, b in zip(edges[:-1], edges[1:]):
+        m = (x >= a) & (x < b)
+        if m.sum() >= least:
+            mid.append(np.sqrt(a * b))
+            mu.append(np.exp(np.log(y[m]).mean()))
+    return np.array(mid), np.array(mu)
 
 
 def km_from(lon, lat, lon0, lat0):
@@ -100,23 +119,6 @@ def main() -> None:
     sig = sigma.values[keep]
     z = res / sig
     event = float(res.mean())
-
-    # The whole spectrum at the same sites, for the bias panel. Below 1/flo the
-    # run is not resolved, so the sweep starts there.
-    flo = json.loads((args.data / args.arm / "realisation.json").read_text())["bb"]["flo"]
-    every, _ = select_empirical(tree, "pSA", MODEL, {})
-    spectra = tree["pSA"]["rotd50"].transpose("station", "period")
-    periods = spectra.period.values
-    swept = (periods >= 1 / flo - 1e-9) & (periods <= LONGEST + 1e-9)
-    assert np.allclose(every.period.values, periods), "sim/GMM period grids differ"
-    with np.errstate(divide="ignore", invalid="ignore"):
-        table = (np.log(spectra.values[keep][:, swept])
-                 - every.transpose("station", "period").values[keep][:, swept])
-    periods = periods[swept]
-    stats = bias_statistics(np.where(np.isfinite(table), table, np.nan))
-    for t in (1, 2, 3, 5, 10):
-        i = np.argmin(np.abs(periods - t))
-        print(f"  T={periods[i]:g} s: mean ln res {stats['mean'][i]:+.3f}, sd {stats['sd'][i]:.3f}")
 
     print(f"T = {period:g} s; {keep.sum()} sites ({(~keep).sum()} dropped: supergrid / invalid)")
     print(f"ln residual: mean {event:+.3f}, median {np.median(res):+.3f}, sd {res.std(ddof=1):.3f}; "
@@ -184,34 +186,59 @@ def main() -> None:
         ax.annotate(name, (tlon, tlat), textcoords="offset points", xytext=offset, ha=ha, va=va,
                     fontsize=8, path_effects=halo, zorder=7)
 
-    # --- Residual across the spectrum, as the top panel of `eqvis bias` -----
-    # The model is the zero line, in its own colour and dash; the map's period
-    # is marked so the two panels can be read together.
-    axr.axhline(0, color=EMPIRICAL_BLUE, lw=display.mark(1.4), ls="--", zorder=2)
-    axr.axvline(period, color="#6b6b6b", lw=display.mark(0.8), ls=":", zorder=2)
-    draw_bias_curve(axr, periods, stats, SIM_ONE_BLACK, "-", display)
+    # --- pSA(3 s) against distance: station density, and its geometric mean -
+    # A hexbin rather than eqvis's scatter, which at 57k sites is a solid
+    # blot. The cloud keeps eqvis's simulation greys (light to mid, so the black
+    # mean line stays readable); counts are log-scaled since the dense far
+    # field would otherwise wash out the near-source bins.
+    # From 1 km: the handful of sites nearer than that would spend half the log
+    # axis, and the hexes' resolution, on almost nothing.
+    near = rrup >= 1.0
+    print(f"distance panel: {(~near).sum()} sites inside 1 km left off")
+    sa, rrup = sim.values[keep][near], rrup[near]
+    outlines = dict(load_basins() or [])
+    members = {}
+    for shown, _, names in BASINS:
+        inside = np.zeros(sa.shape, bool)
+        for basin in names:
+            inside |= shapely.contains_xy(outlines[basin], lon[near], lat[near])
+        members[shown] = inside
+        print(f"  {shown} basin: {inside.sum()} sites, geomean {np.exp(np.log(sa[inside]).mean()):.4f} g")
+    cloud = LinearSegmentedColormap.from_list("cloud", ["#ededed", "#5a5a5a"])
+    hexes = axr.hexbin(rrup, sa, xscale="log", yscale="log", gridsize=(42, 24), mincnt=1,
+                       cmap=cloud, norm=LogNorm(), lw=0, rasterized=True, zorder=1)
+    edges = np.geomspace(1.0, rrup.max() * 1.001, 22)
+    mid, mu = geomean_by_distance(rrup, sa, edges)
+    axr.plot(mid, mu, color=SIM_ONE_BLACK, lw=display.mark(2.4), zorder=4,
+             path_effects=[patheffects.withStroke(linewidth=display.mark(4.2), foreground="white")])
+    # The basins over the density, under the mean line.
+    for shown, colour, _ in BASINS:
+        inside = members[shown]
+        axr.scatter(rrup[inside], sa[inside], s=display.mark(2.5), color=colour, alpha=0.35, lw=0,
+                    rasterized=True, zorder=2)
     axr.set_xscale("log")
-    axr.set_xlim(periods[0], periods[-1])
-    axr.set_xticks([t for t in (1, 2, 3, 5, 10) if periods[0] <= t <= periods[-1]])
+    axr.set_yscale("log")
     axr.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
-    axr.xaxis.set_minor_formatter("")
+    axr.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
     axr.grid(True, which="major", lw=display.mark(0.3), color="#dddddd", zorder=0)
-    axr.set_xlabel("period (s)", fontsize=9)
-    axr.set_ylabel(f"ln[pSA$_{{sim}}$ / pSA$_{{{SHOWN}}}$]", fontsize=9)
+    axr.set_xlabel("R$_{rup}$ (km)", fontsize=9)
+    axr.set_ylabel(f"{label} (g)", fontsize=9)
     axr.tick_params(which="both", labelsize=8)
     for spine in axr.spines.values():
         spine.set_linewidth(display.mark(0.6))
+    counts = figr.colorbar(hexes, ax=axr, pad=0.02, aspect=display.mark(25))
+    counts.set_label("stations per hex", fontsize=8)
+    counts.ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+    counts.ax.tick_params(labelsize=7)
     axr.legend(
-        handles=[
-            plt.Line2D([], [], color=SIM_ONE_BLACK, lw=display.mark(1.8), label="mean"),
-            plt.Rectangle((0, 0), 1, 1, fc=SIM_ONE_BLACK, alpha=0.22, lw=0, label="±1σ between sites"),
-            plt.Line2D([], [], color=EMPIRICAL_BLUE, ls="--", lw=display.mark(1.4), label=SHOWN),
-        ],
-        loc="upper left", fontsize=7, frameon=False,
+        handles=[plt.Line2D([], [], color=SIM_ONE_BLACK, lw=display.mark(2.4), label="geometric mean")]
+        + [plt.Line2D([], [], ls="none", marker="o", ms=4, color=colour, label=f"{shown} basin")
+           for shown, colour, _ in BASINS],
+        loc="lower left", fontsize=7, frameon=False,
     )
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    for figure, name in ((fig, "map"), (figr, "bias")):
+    for figure, name in ((fig, "map"), (figr, "distance")):
         out = args.out_dir / f"marlborough-residual-{name}.png"
         figure.savefig(out, dpi=display.dpi, bbox_inches="tight", pad_inches=0.03)
         print(f"wrote {out}")
