@@ -43,6 +43,10 @@ ME = "J. Faulkner"
 
 # Peer-reviewed papers. (authors, year, title, venue, [(link label, url)]). Newest first.
 PUBLICATIONS = [
+    (["B.A. Bradley", "J. Faulkner", "F. Kuncar", "C.A. Pajaro"], 2026,
+     "Ground-motion simulation of multi-segment ruptures on the Alpine-Marlborough fault system",
+     "Preprint, submitted to <i>Earthquake Spectra</i>",
+     [("Preprint", "https://arxiv.org/abs/2610.33399")]),
     (["J. Faulkner", "G. Van de Voorde"], 2025,
      "On the equivalence, stabilisers, and feet of Buekenhout-Tits unitals",
      "<i>Designs, Codes and Cryptography</i> 93(2), 297&ndash;307",
