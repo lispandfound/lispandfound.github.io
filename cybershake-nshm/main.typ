@@ -36,7 +36,6 @@
   aspect-ratio: "16-9",
   config-info(
     title: [Cybershake NZ: towards simulations in the NSHM],
-    subtitle: [rupture selection, multi-segment ruptures, and the physics in between],
     author: [Jake Faulkner],
     date: datetime.today(),
     institution: [University of Canterbury],
@@ -380,7 +379,7 @@
 
 #v(1.2em)
 #big(topography-squashing, cap: 200%)
-#note[same layers and basin; the flat grid squashes them thinner the higher they sat]
+#note[An unexpected difference: elevated basins suffer under traditional squashed-tapered topographic surrogate]
 
 // SAY: And the transition frequency. To carry a frequency the grid has to
 // resolve the slowest material, and cost goes as grid spacing to the minus four:
@@ -440,8 +439,8 @@
 #grid(
   columns: (1fr, 1fr, 1fr),
   column-gutter: 0.6em,
-  still("rupture", [14 s: rupture runs both ways along the fault]),
-  still("basin", [27 s: rupture over, the Wairau basin keeps ringing]),
+  still("rupture", [14 s: rupture propagating over multi-segment fault]),
+  still("basin", [27 s: rupture over, reverberation in the Nelson basin]),
   still("endcard", [Strongest shaking felt]),
 )
 #v(1fr)
@@ -510,7 +509,7 @@
   column-gutter: 1.2em,
   pair(
     [Otira Viaduct],
-    [highway through the Southern Alps],
+    [key pass through Alps],
     [ridge 1840 m, viaduct 891 m · 3 flat references, 2–11 km · $V_(S 30)$ 850 / 801 m/s · $R_"rup"$ 153 km],
     "figures/photos/otira-viaduct.jpg",
     "otira",
@@ -518,7 +517,7 @@
   ),
   pair(
     [Sugarloaf, Port Hills],
-    [summit above Christchurch, 121 m tower],
+    [Christchurch, over tunnel to major port],
     [15 flat rock references, 2–9 km · $H_(1250)$ 95 m · $V_(S 30)$ 1038 / 839–1033 m/s · $R_"rup"$ 168 km],
     "figures/photos/sugarloaf-bowenvale.jpg",
     "sugarloaf",
@@ -585,6 +584,7 @@
   ]),
   card([Source], height: 7.4cm, [
     #set text(1.25em)
-    - Rupture generator: joint ruptures and curved ruptures
+    - Joint crustal-subduction ruptures
+    - Curved ruptures
   ]),
 )
