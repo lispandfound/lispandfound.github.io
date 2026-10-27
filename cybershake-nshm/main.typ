@@ -531,8 +531,8 @@
 // over the logic-tree prediction, at fifty-seven thousand sites.
 // On average the simulation is about twice the empirical model: an event term
 // of plus 0.76, a bit under one sigma. It is high at Blenheim and Wellington
-// alike, and roughly flat with distance, so most of it is a level offset rather
-// than a difference in attenuation.
+// alike, and it grows with period: about plus 0.2 at 1 second, 0.76 at 3, and
+// 1.4 at 10 seconds.
 // On top of that offset is the pattern the empirical model cannot have: a
 // strong band running southwest along the ranges, and the Taranaki side of the
 // North Island below the prediction.
@@ -541,22 +541,12 @@
 // before saying why. Event term is an unweighted site mean, not mixed-effects.
 == The sum total, against the logic tree
 
-// The event term comes from the script's JSON, so the slide cannot drift from
-// the figure.
-#let residual = json("out/png/marlborough-residual.json")
-
 #grid(
   columns: (auto, 1fr),
   column-gutter: 1.2em,
   align: horizon,
   image("out/png/marlborough-residual-map.png", height: 92%),
-  stack(
-    spacing: 0.8em,
-    align(center, text(2.6em, weight: "bold", fill: exact)[
-      #if residual.event_term >= 0 [+]#residual.event_term
-    ]),
-    image("out/png/marlborough-residual-distance.png", width: 100%),
-  ),
+  image("out/png/marlborough-residual-bias.png", width: 100%),
 )
 
 // SAY: The next twelve months. On the physics: a transition frequency of 2 Hz

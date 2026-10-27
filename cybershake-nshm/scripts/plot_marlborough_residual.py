@@ -17,9 +17,11 @@ The residual is ln(SA_sim / SA_NSHM) -- the ``map --diff`` order, run 1 over run
 2 -- with SA_sim the simulated RotD50 (``pSA/rotd50``) and the NSHM term
 ``pSA/empirical/NSHM2022/mean``, which is stored as the mean of ln SA, so no
 further logging. ``std_Total`` is its total sigma of ln SA; the sigma-normalised
-residual is printed only. The right panel is the binned mean residual with a
-±1σ band of the between-site scatter in each bin, not the model's sigma. The
-file does not record which logic-tree branches were combined or how.
+residual is printed only. The right panel is the top panel of ``eqvis bias``,
+swept over the same sites: the mean residual at each period with a ±1σ band of
+the between-site scatter, not the model's sigma, from 1/flo (the run's
+low-frequency limit) to 10 s. The file does not record which logic-tree
+branches were combined or how.
 
 The arm is ``prefilter``. 3 s is a stored period. Sites inside the SW4 supergrid
 (supergrid_depth > 0) are dropped before interpolation. Distance is the stored
@@ -43,7 +45,8 @@ import numpy as np
 from matplotlib.colors import BoundaryNorm
 from matplotlib.ticker import FuncFormatter, MaxNLocator
 
-from eqvis_workflow.constants import EMPIRICAL_BLUE, SIM_CLOUD_GREY, SIM_ONE_BLACK
+from eqvis_workflow.bias import bias_statistics, draw_bias_curve
+from eqvis_workflow.constants import EMPIRICAL_BLUE, SIM_ONE_BLACK
 from eqvis_workflow.data import im_label, open_ims, select_empirical, select_im
 from eqvis_workflow.display import Display
 from eqvis_workflow.geography import draw_coastline, draw_geometry, load_coastline
@@ -54,6 +57,7 @@ PERIOD = 3.0  # s
 LIMIT = 1.5  # ln units, symmetric colour limit
 MODEL = "NSHM2022"  # the group in the IM file
 SHOWN = "NSHM"  # how the figure names it
+LONGEST = 10.0  # s, the end of the period sweep
 TOWNS = {  # name: (lon, lat), label offset in points, ha, va
     "Nelson": ((173.284, -41.271), (-5, 0), "right", "center"),
     "Blenheim": ((173.954, -41.514), (6, -1), "left", "top"),
@@ -67,18 +71,6 @@ NEAR_KM = 5.0  # "town area" radius for the printed town residuals
 DESIGN = (13.33, 7.5)
 SHOWN_HEIGHT = 100.0  # cm
 VIEWING_DISTANCE = 5.0  # m
-
-
-def running_mean(x, y, edges, least=30):
-    """Mean and standard deviation of y in each bin of x with enough sites."""
-    mid, mu, sd = [], [], []
-    for a, b in zip(edges[:-1], edges[1:]):
-        m = (x >= a) & (x < b)
-        if m.sum() >= least:
-            mid.append(np.sqrt(a * b))
-            mu.append(y[m].mean())
-            sd.append(y[m].std(ddof=1))
-    return np.array(mid), np.array(mu), np.array(sd)
 
 
 def km_from(lon, lat, lon0, lat0):
@@ -109,6 +101,23 @@ def main() -> None:
     z = res / sig
     event = float(res.mean())
 
+    # The whole spectrum at the same sites, for the bias panel. Below 1/flo the
+    # run is not resolved, so the sweep starts there.
+    flo = json.loads((args.data / args.arm / "realisation.json").read_text())["bb"]["flo"]
+    every, _ = select_empirical(tree, "pSA", MODEL, {})
+    spectra = tree["pSA"]["rotd50"].transpose("station", "period")
+    periods = spectra.period.values
+    swept = (periods >= 1 / flo - 1e-9) & (periods <= LONGEST + 1e-9)
+    assert np.allclose(every.period.values, periods), "sim/GMM period grids differ"
+    with np.errstate(divide="ignore", invalid="ignore"):
+        table = (np.log(spectra.values[keep][:, swept])
+                 - every.transpose("station", "period").values[keep][:, swept])
+    periods = periods[swept]
+    stats = bias_statistics(np.where(np.isfinite(table), table, np.nan))
+    for t in (1, 2, 3, 5, 10):
+        i = np.argmin(np.abs(periods - t))
+        print(f"  T={periods[i]:g} s: mean ln res {stats['mean'][i]:+.3f}, sd {stats['sd'][i]:.3f}")
+
     print(f"T = {period:g} s; {keep.sum()} sites ({(~keep).sum()} dropped: supergrid / invalid)")
     print(f"ln residual: mean {event:+.3f}, median {np.median(res):+.3f}, sd {res.std(ddof=1):.3f}; "
           f"5-95% [{np.percentile(res, 5):+.2f}, {np.percentile(res, 95):+.2f}]")
@@ -134,12 +143,11 @@ def main() -> None:
     colormap = plt.get_cmap("RdBu_r")
     norm = BoundaryNorm(boundaries, colormap.N, extend="both")
 
-    # Two figures, one per panel, cropped tight: the slide lays them out and
-    # prints the headline itself (from the JSON written below), so neither
-    # panel carries whitespace the slide cannot use.
+    # Two figures, one per panel, cropped tight: the slide lays them out, so
+    # neither panel carries whitespace the slide cannot use.
     width, height = display.size
     fig, ax = plt.subplots(figsize=(0.55 * width, height), layout="constrained")
-    figr, axr = plt.subplots(figsize=(0.6 * width, 0.62 * height), layout="constrained")
+    figr, axr = plt.subplots(figsize=(0.6 * width, 0.8 * height), layout="constrained")
 
     # --- Map, as `eqvis map --diff` draws it ---------------------------------
     mesh = ax.pcolormesh(grid_lon, grid_lat, grid, cmap=colormap, norm=norm, rasterized=True)
@@ -176,43 +184,37 @@ def main() -> None:
         ax.annotate(name, (tlon, tlat), textcoords="offset points", xytext=offset, ha=ha, va=va,
                     fontsize=8, path_effects=halo, zorder=7)
 
-    # --- Residual against Rrup, as `eqvis distance` panels draw it ----------
-    edges = np.geomspace(max(rrup.min(), 0.5), rrup.max() * 1.001, 22)
-    mid, mu, sd = running_mean(rrup, res, edges)
-    # The band is the between-site scatter in each distance bin, not the
-    # model's sigma. The model is the zero line, in its own colour and dash.
-    axr.fill_between(mid, mu - sd, mu + sd, color=SIM_CLOUD_GREY, lw=0, zorder=1)
-    axr.axhline(0, color=EMPIRICAL_BLUE, lw=display.mark(1.4), ls="--", zorder=3)
-    axr.plot(mid, mu, color=SIM_ONE_BLACK, lw=display.mark(2.4), zorder=4)
+    # --- Residual across the spectrum, as the top panel of `eqvis bias` -----
+    # The model is the zero line, in its own colour and dash; the map's period
+    # is marked so the two panels can be read together.
+    axr.axhline(0, color=EMPIRICAL_BLUE, lw=display.mark(1.4), ls="--", zorder=2)
+    axr.axvline(period, color="#6b6b6b", lw=display.mark(0.8), ls=":", zorder=2)
+    draw_bias_curve(axr, periods, stats, SIM_ONE_BLACK, "-", display)
     axr.set_xscale("log")
-    axr.set_xticks([1, 10, 100], ["1", "10", "100"])
-    axr.set_xlim(edges[0], edges[-1])
-    axr.set_ylim(-2, 3)
-    axr.grid(True, which="both", lw=0.3, color="#dddddd", zorder=0)
-    axr.set_xlabel("R$_{rup}$ (km)", fontsize=9)
-    axr.set_ylabel(f"ln[{label}$_{{sim}}$ / {label}$_{{{SHOWN}}}$]", fontsize=9)
-    axr.tick_params(labelsize=8)
+    axr.set_xlim(periods[0], periods[-1])
+    axr.set_xticks([t for t in (1, 2, 3, 5, 10) if periods[0] <= t <= periods[-1]])
+    axr.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+    axr.xaxis.set_minor_formatter("")
+    axr.grid(True, which="major", lw=display.mark(0.3), color="#dddddd", zorder=0)
+    axr.set_xlabel("period (s)", fontsize=9)
+    axr.set_ylabel(f"ln[pSA$_{{sim}}$ / pSA$_{{{SHOWN}}}$]", fontsize=9)
+    axr.tick_params(which="both", labelsize=8)
     for spine in axr.spines.values():
         spine.set_linewidth(display.mark(0.6))
     axr.legend(
         handles=[
-            plt.Line2D([], [], color=SIM_ONE_BLACK, lw=display.mark(2.4), label="mean"),
-            plt.Rectangle((0, 0), 1, 1, color=SIM_CLOUD_GREY, lw=0, label="±1σ between sites"),
+            plt.Line2D([], [], color=SIM_ONE_BLACK, lw=display.mark(1.8), label="mean"),
+            plt.Rectangle((0, 0), 1, 1, fc=SIM_ONE_BLACK, alpha=0.22, lw=0, label="±1σ between sites"),
             plt.Line2D([], [], color=EMPIRICAL_BLUE, ls="--", lw=display.mark(1.4), label=SHOWN),
         ],
-        loc="lower left", fontsize=7, frameon=False,
+        loc="upper left", fontsize=7, frameon=False,
     )
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    for figure, name in ((fig, "map"), (figr, "distance")):
+    for figure, name in ((fig, "map"), (figr, "bias")):
         out = args.out_dir / f"marlborough-residual-{name}.png"
         figure.savefig(out, dpi=display.dpi, bbox_inches="tight", pad_inches=0.03)
         print(f"wrote {out}")
-    # The headline number, for the slide to print rather than retype.
-    headline = args.out_dir / "marlborough-residual.json"
-    headline.write_text(json.dumps({"event_term": round(event, 2), "period": float(period),
-                                    "sites": int(keep.sum())}))
-    print(f"wrote {headline}")
 
 
 if __name__ == "__main__":
